@@ -11,6 +11,7 @@ class Accelerator extends Module {
     val writeEnable = Output(Bool ())
     val dataWrite = Output(UInt (32.W))
 
+
   })
 
 
@@ -24,6 +25,7 @@ class Accelerator extends Module {
   val y = RegInit(0.U(8.W))
   val color = RegInit(0.U(8.W))
   val lastY = RegInit(0.U(8.W))
+  val prev = RegInit(VecInit(Seq.fill(20)(0.U(8.W))))
 
   //Default values
   io.writeEnable := false.B
@@ -41,36 +43,32 @@ class Accelerator extends Module {
     }
     is(loopx) {
       io.writeEnable := false.B
-      when(x < 20.U) {
-        stateReg := loopy
-          y := 0.U
-      } .otherwise {
-        stateReg := done
-      }
-    }
 
-    is(loopy) {
-      io.writeEnable := false.B
-      addressReg := y*20.U + x
-      color := 0.U
-      when(x === 0.U | y === 0.U | x === 19.U | y === 19.U ) {
+      when(y === 20.U) {
+        y := 0.U
+      }
+      when(x === 20.U) {
+        stateReg := done
+      } .elsewhen (x === 0.U | y === 0.U | x === 19.U | y === 19.U ) {
         stateReg := write
       } .otherwise{
         stateReg := erode
       }
+
+      addressReg := y*20.U + x
+      color := 0.U
+
     }
 
     is(erode) {
       io.address := addressReg
-      stateReg := Mux(io.dataRead === 255.U, Mux(lastY === 0.U, write, erodeRight), write)
+      stateReg := Mux(io.dataRead === 255.U, Mux(lastY === 0.U, write, Mux(prev(y) === 255.U, erodeRight, write)), write)
       lastY := io.dataRead
+      prev(y) := io.dataRead
+
     }
     is(erodeRight) {
       io.address := addressReg + 1.U
-      stateReg := Mux(io.dataRead === 255.U, erodeLeft, write)
-    }
-    is(erodeLeft) {
-      io.address := addressReg - 1.U
       stateReg := Mux(io.dataRead === 255.U, erodeDown, write)
     }
     is(erodeDown) {
@@ -92,12 +90,10 @@ class Accelerator extends Module {
       io.dataWrite := color
       io.writeEnable := true.B
 
+      y := y + 1.U
+      stateReg := loopx
       when(y === 19.U) {
         x := x + 1.U
-        stateReg := loopx
-      } .otherwise {
-        y := y + 1.U
-        stateReg := loopy
       }
     }
 
