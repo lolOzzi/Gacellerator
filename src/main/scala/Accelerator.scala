@@ -20,9 +20,10 @@ class Accelerator extends Module {
 
   //Support registers
   val addressReg = RegInit(0.U(16.W))
-  val x = RegInit(0.U(32.W))
-  val y = RegInit(0.U(32.W))
-  val color = RegInit(0.U(16.W))
+  val x = RegInit(0.U(8.W))
+  val y = RegInit(0.U(8.W))
+  val color = RegInit(0.U(8.W))
+  val lastY = RegInit(0.U(8.W))
 
   //Default values
   io.writeEnable := false.B
@@ -61,42 +62,24 @@ class Accelerator extends Module {
 
     is(erode) {
       io.address := addressReg
-      when(io.dataRead === 255.U ) {
-        stateReg := erodeRight
-      } .otherwise{
-        stateReg := write
-      }
+      stateReg := Mux(io.dataRead === 255.U, Mux(lastY === 0.U, write, erodeRight), write)
+      lastY := io.dataRead
     }
     is(erodeRight) {
       io.address := addressReg + 1.U
-      when(io.dataRead === 255.U ) {
-        stateReg := erodeLeft
-      } .otherwise{
-        stateReg := write
-      }
+      stateReg := Mux(io.dataRead === 255.U, erodeLeft, write)
     }
     is(erodeLeft) {
       io.address := addressReg - 1.U
-      when(io.dataRead === 255.U ) {
-        stateReg := erodeDown
-      } .otherwise{
-        stateReg := write
-      }
+      stateReg := Mux(io.dataRead === 255.U, erodeDown, write)
     }
     is(erodeDown) {
       io.address := addressReg + 20.U
-      when(io.dataRead === 255.U ) {
-        stateReg := erodeUp
-      } .otherwise{
-        color := 0.U
-        stateReg := write
-      }
+      stateReg := Mux(io.dataRead === 255.U, erodeUp, write)
     }
     is(erodeUp) {
       io.address := addressReg - 20.U
-      when(io.dataRead === 255.U ) {
-        color := 255.U
-      }
+      color := io.dataRead
       stateReg := write
     }
     is(write) {
