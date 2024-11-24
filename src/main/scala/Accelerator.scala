@@ -75,7 +75,12 @@ class Accelerator extends Module {
     }
     is(erodeDown) {
       io.address := addressReg + 20.U
-      stateReg := Mux(io.dataRead === 255.U, erodeUp, write)
+      when(io.dataRead === 255.U & lastY === 255.U) {
+        color := 255.U
+      } .otherwise {
+        color := 0.U
+      }
+      stateReg := write
     }
     is(erodeUp) {
       io.address := addressReg - 20.U
