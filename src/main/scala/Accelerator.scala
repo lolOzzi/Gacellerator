@@ -62,8 +62,8 @@ class Accelerator extends Module {
         stateReg := write
       } .otherwise{
         stateReg := erodeRight
-        when((cols(y) & cols(colsize + y - 1.U) &
-          cols(colsize + y + 1.U)) === 255.U) {
+        when((cols(y) & cols(y + colsize) &
+          cols(colsize + y + 1.U) & cols(y - 1.U)) === 255.U) {
           color := 255.U
         }
 
@@ -71,7 +71,6 @@ class Accelerator extends Module {
 
 
     }
-
     is(erodeRight) {
       io.address := addressReg + 1.U
       cols(y) := cols(y + colsize)
