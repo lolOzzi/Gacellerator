@@ -13,13 +13,23 @@ class SystemTopTester(dut: SystemTop) extends PeekPokeTester(dut) {
   //Uncomment one of the following line depending on the image you want to load to the data memory
   //var image = Images.blackImageerodeDown
   //var image = Images.whiteImage
-  var image = Images.cellsImage
+  var image = Images.borderCellsImage
   //var image = Images.borderCellsImage
   for( address <- 0 to image.length-1){
     poke(dut.io.testerDataMemEnable, 1)
     poke(dut.io.testerDataMemWriteEnable, 1)
     poke(dut.io.testerDataMemAddress, address)
     poke(dut.io.testerDataMemDataWrite, image(address))
+    step(1)
+  }
+  //var image = Images.whiteImage
+  var image2 = Images.whiteImage
+  //var image = Images.borderCellsImage
+  for( address <- 0 to image2.length-1){
+    poke(dut.io.testerDataMemEnable, 1)
+    poke(dut.io.testerDataMemWriteEnable, 1)
+    poke(dut.io.testerDataMemAddress, address+400)
+    poke(dut.io.testerDataMemDataWrite, image2(address))
     step(1)
   }
   poke(dut.io.testerDataMemEnable, 0)

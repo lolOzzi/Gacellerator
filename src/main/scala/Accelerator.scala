@@ -16,7 +16,7 @@ class Accelerator extends Module {
 
 
   //State enum and register
-  val idle :: loopx :: erodeRight :: borderLeft :: borderLeftHelp :: borderTopBot :: write :: done :: Nil = Enum (8)
+  val idle :: write :: erodeRight :: borderLeft :: finish :: done :: Nil = Enum (6)
   val stateReg = RegInit(idle)
 
   //Support registers
@@ -24,8 +24,11 @@ class Accelerator extends Module {
   val x = RegInit(0.U(8.W))
   val y = RegInit(0.U(8.W))
   val color = RegInit(0.U(8.W))
+  val colorNext = RegInit(0.U(8.W))
   val cols = RegInit(VecInit(Seq.fill(40)(0.U(8.W))))
   val colsize = 20.U
+  val init = RegInit(0.U(1.W))
+  val addressRegNext = RegInit(0.U(16.W))
 
   //Default values
   io.writeEnable := false.B
@@ -37,63 +40,72 @@ class Accelerator extends Module {
   switch(stateReg) {
     is(idle) {
       when(io.start) {
-        stateReg := loopx
+        stateReg := write
         addressReg := 0.U(16.W)
       }
     }
-    is(loopx) {
-      io.writeEnable := false.B
-      color := 0.U
-      addressReg := y*20.U + x
-      io.address := addressReg
+    is(write) {
 
-      when(y === 20.U) {
-        y := 0.U
+      when (init === 1.U) {
+        io.address := addressReg + 400.U
+        io.dataWrite := color
+        io.writeEnable := true.B
+
+      }. otherwise {
+        init := 1.U
       }
 
+
+      colorNext := 0.U
+      addressRegNext := y*20.U + x
+
       when(x === 20.U) {
-        stateReg := done
+        stateReg := finish
       } .elsewhen (x === 0.U ) {
         stateReg := borderLeft
+      }.elsewhen (x === 19.U ) {
+        y := y + 1.U
+        when(y === 19.U) {
+          x := 20.U
+        }
+        addressReg := addressRegNext
+        colorNext := 0.U
+        stateReg := write
       } .elsewhen (y === 0.U || y === 19.U  ) {
         stateReg := erodeRight
-      } .elsewhen (x === 19.U ) {
-        //Border right
-        stateReg := write
       } .otherwise{
         stateReg := erodeRight
         when((cols(y) & cols(y + colsize) &
           cols(colsize + y + 1.U) & cols(y - 1.U)) === 255.U) {
-          color := 255.U
+          colorNext := 255.U
         }
-
       }
-
-
     }
     is(erodeRight) {
-      io.address := addressReg + 1.U
+      io.address := addressRegNext + 1.U
+      addressReg := addressRegNext
       cols(y) := cols(y + colsize)
       cols(y + colsize) := io.dataRead
-      color := io.dataRead & color
+      color := io.dataRead & colorNext
       stateReg := write
+      y := y + 1.U
+      when(y === 19.U) {
+        x := x + 1.U
+        y := 0.U
+      }
     }
     is(borderLeft) {
-      io.address := addressReg
-      cols(y) := io.dataRead
+      colorNext := 0.U;
+      io.address := addressRegNext
+      cols(y + colsize) := io.dataRead
       stateReg := erodeRight
     }
 
-    is(write) {
-      io.address := addressReg + 400.U
-      io.dataWrite := color
+    is(finish){
+      io.address := 799.U
       io.writeEnable := true.B
-
-      y := y + 1.U
-      stateReg := loopx
-      when(y === 19.U) {
-        x := x + 1.U
-      }
+      io.dataWrite := 0.U
+      stateReg := done
     }
 
     is(done) {
