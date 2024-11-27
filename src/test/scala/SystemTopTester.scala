@@ -11,7 +11,7 @@ class SystemTopTester(dut: SystemTop) extends PeekPokeTester(dut) {
   //Load the data memory with image data
   System.out.print("\nLoading the data memory with image data... ")
   //Uncomment one of the following line depending on the image you want to load to the data memory
-  //var image = Images.blackImage
+  //var image = Images.blackImageerodeDown
   //var image = Images.whiteImage
   var image = Images.cellsImage
   //var image = Images.borderCellsImage

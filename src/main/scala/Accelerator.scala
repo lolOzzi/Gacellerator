@@ -16,7 +16,7 @@ class Accelerator extends Module {
 
 
   //State enum and register
-  val idle :: loopx :: loopy :: erode :: erodeRight :: erodeLeft :: erodeDown :: erodeUp :: write :: done :: Nil = Enum (10)
+  val idle :: loopx :: erodeRight :: borderLeft :: borderLeftHelp :: borderTopBot :: write :: done :: Nil = Enum (8)
   val stateReg = RegInit(idle)
 
   //Support registers
@@ -24,8 +24,8 @@ class Accelerator extends Module {
   val x = RegInit(0.U(8.W))
   val y = RegInit(0.U(8.W))
   val color = RegInit(0.U(8.W))
-  val lastY = RegInit(0.U(8.W))
-  val prev = RegInit(VecInit(Seq.fill(20)(0.U(8.W))))
+  val cols = RegInit(VecInit(Seq.fill(40)(0.U(8.W))))
+  val colsize = 20.U
 
   //Default values
   io.writeEnable := false.B
@@ -43,52 +43,48 @@ class Accelerator extends Module {
     }
     is(loopx) {
       io.writeEnable := false.B
+      color := 0.U
+      addressReg := y*20.U + x
+      io.address := addressReg
 
       when(y === 20.U) {
         y := 0.U
       }
+
       when(x === 20.U) {
         stateReg := done
-      } .elsewhen (x === 0.U | y === 0.U | x === 19.U | y === 19.U ) {
+      } .elsewhen (x === 0.U ) {
+        stateReg := borderLeft
+      } .elsewhen (y === 0.U || y === 19.U  ) {
+        stateReg := erodeRight
+      } .elsewhen (x === 19.U ) {
+        //Border right
         stateReg := write
       } .otherwise{
-        stateReg := erode
-      }
-
-      addressReg := y*20.U + x
-      color := 0.U
-
-    }
-
-    is(erode) {
-      io.address := addressReg
-      when(io.dataRead === 255.U && lastY === 255.U && prev(y) === 255.U) {
         stateReg := erodeRight
-      } .otherwise {
-        stateReg := write
+        when((cols(y) & cols(colsize + y - 1.U) &
+          cols(colsize + y + 1.U)) === 255.U) {
+          color := 255.U
+        }
+
       }
-      lastY := io.dataRead
-      prev(y) := io.dataRead
+
 
     }
+
     is(erodeRight) {
       io.address := addressReg + 1.U
-      stateReg := Mux(io.dataRead === 255.U, erodeDown, write)
-    }
-    is(erodeDown) {
-      io.address := addressReg + 20.U
-      when(io.dataRead === 255.U & lastY === 255.U) {
-        color := 255.U
-      } .otherwise {
-        color := 0.U
-      }
+      cols(y) := cols(y + colsize)
+      cols(y + colsize) := io.dataRead
+      color := io.dataRead & color
       stateReg := write
     }
-    is(erodeUp) {
-      io.address := addressReg - 20.U
-      color := io.dataRead
-      stateReg := write
+    is(borderLeft) {
+      io.address := addressReg
+      cols(y) := io.dataRead
+      stateReg := erodeRight
     }
+
     is(write) {
       io.address := addressReg + 400.U
       io.dataWrite := color
