@@ -101,9 +101,11 @@ class Accelerator extends Module {
       }
 
       is(write) {
-          io.address := addressReg + 400.U - 20.U
-          io.dataWrite := 0.U
-          io.writeEnable := true.B
+          when(skip === 1.U) {
+            io.address := addressReg + 400.U - 20.U
+            io.dataWrite := 0.U
+            io.writeEnable := true.B
+          }
 
           currAddress := addressReg + 400.U
           currColor := color
