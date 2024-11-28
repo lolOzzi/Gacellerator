@@ -30,6 +30,8 @@ class Accelerator extends Module {
   val cellLength = RegInit(0.U(8.W))
   val skip= RegInit(0.U(1.W))
   val currCell= RegInit(0.U(8.W))
+  val currAddress = RegInit(0.U(16.W))
+  val currColor = RegInit(0.U(8.W))
 
   //Default values
   io.writeEnable := false.B
@@ -46,7 +48,11 @@ class Accelerator extends Module {
       }
     }
     is(loopx) {
-      io.writeEnable := false.B
+    //  when((y > 1.U)) {
+      //  io.address := currAddress
+       // io.dataWrite := currColor
+        //io.writeEnable := true.B
+     // }
 
       when(y === 20.U) {
         y := 0.U
@@ -54,6 +60,7 @@ class Accelerator extends Module {
       when(x === 20.U) {
         stateReg := done
       }.elsewhen(x === 0.U | y === 0.U | x === 19.U | y === 19.U) {
+        currCell := 0.U
         stateReg := write
       }.otherwise {
         stateReg := erode
@@ -66,7 +73,6 @@ class Accelerator extends Module {
     }
 
     is(erode) {
-      io.address := addressReg
       when(io.dataRead === 255.U) {
         currCell := 255.U
         stateReg := erodeLeft
@@ -92,6 +98,7 @@ class Accelerator extends Module {
         color := io.dataRead
         stateReg := write
       }
+
       is(write) {
         when(skip === 1.U) {
           io.address := addressReg + 400.U - 20.U
@@ -102,16 +109,14 @@ class Accelerator extends Module {
           io.address := addressReg + 400.U
           io.dataWrite := color
           io.writeEnable := true.B
-
-
-          when(currCell === 0.U && y < 18.U ) {
+          when(currCell === 0.U && y < 18.U) {
             y := y + 2.U
             skip := 1.U
             stateReg := loopx
             when(y === 19.U) {
               x := x + 1.U
             }
-          }.otherwise{
+          }.otherwise {
             y := y + 1.U
             skip := 0.U
             stateReg := loopx
@@ -119,8 +124,8 @@ class Accelerator extends Module {
               x := x + 1.U
             }
           }
-
         }
+
       }
       is(done) {
         io.done := true.B
