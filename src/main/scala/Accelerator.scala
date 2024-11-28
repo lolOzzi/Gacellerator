@@ -48,11 +48,11 @@ class Accelerator extends Module {
       }
     }
     is(loopx) {
-    //  when((y > 1.U)) {
-      //  io.address := currAddress
-       // io.dataWrite := currColor
-        //io.writeEnable := true.B
-     // }
+      when((y > 1.U)) {
+        io.address := currAddress
+        io.dataWrite := currColor
+        io.writeEnable := true.B
+      }
 
       when(y === 20.U) {
         y := 0.U
@@ -73,6 +73,7 @@ class Accelerator extends Module {
     }
 
     is(erode) {
+      io.address := addressReg
       when(io.dataRead === 255.U) {
         currCell := 255.U
         stateReg := erodeLeft
@@ -100,15 +101,12 @@ class Accelerator extends Module {
       }
 
       is(write) {
-        when(skip === 1.U) {
           io.address := addressReg + 400.U - 20.U
           io.dataWrite := 0.U
           io.writeEnable := true.B
-          skip := 0.U
-        }.otherwise {
-          io.address := addressReg + 400.U
-          io.dataWrite := color
-          io.writeEnable := true.B
+
+          currAddress := addressReg + 400.U
+          currColor := color
           when(currCell === 0.U && y < 18.U) {
             y := y + 2.U
             skip := 1.U
@@ -126,7 +124,7 @@ class Accelerator extends Module {
           }
         }
 
-      }
+
       is(done) {
         io.done := true.B
         stateReg := done
