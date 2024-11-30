@@ -16,13 +16,13 @@ class Accelerator extends Module {
 
 
   //State enum and register
-  val idle :: loopx :: loopy :: erode :: erodeRight :: erodeLeft :: erodeDown :: erodeUp :: write :: done :: Nil = Enum(10)
+  val idle :: writeBorder :: loopx :: erode :: erodeRight :: erodeLeft :: erodeDown :: erodeUp :: write :: done :: Nil = Enum(10)
   val stateReg = RegInit(idle)
 
   //Support registers
   val addressReg = RegInit(0.U(16.W))
-  val x = RegInit(0.U(8.W))
-  val y = RegInit(0.U(8.W))
+  val x = RegInit(1.U(8.W))
+  val y = RegInit(1.U(8.W))
   val color = RegInit(0.U(8.W))
   val lastY = RegInit(0.U(8.W))
   val prev = RegInit(VecInit(Seq.fill(20)(0.U(8.W))))
@@ -30,6 +30,12 @@ class Accelerator extends Module {
   val cellLength = RegInit(0.U(8.W))
   val skip= RegInit(0.U(1.W))
   val currCell= RegInit(0.U(8.W))
+<<<<<<< Updated upstream
+=======
+  val currAddress = RegInit(0.U(16.W))
+  val currColor = RegInit(0.U(8.W))
+  val writeCell = RegInit(0.U(8.W))
+>>>>>>> Stashed changes
 
   //Default values
   io.writeEnable := false.B
@@ -41,20 +47,42 @@ class Accelerator extends Module {
   switch(stateReg) {
     is(idle) {
       when(io.start) {
-        stateReg := loopx
+        stateReg := writeBorder
         addressReg := 0.U(16.W)
+      }
+    }
+    is(writeBorder){
+      when(writeCell < 76.U){
+        when(writeCell <= 19.U){
+          io.address := 20.U * writeCell + 400.U
+        }.elsewhen(writeCell >= 20.U && writeCell <= 39.U){
+          io.address := 20.U * (writeCell-20.U) + 419.U
+        }.elsewhen(writeCell >= 40.U && writeCell <= 57.U){
+          io.address := (writeCell-40.U) + 400.U + 1.U
+        }.otherwise{
+          io.address := (writeCell-58.U) + 781.U
+        }
+        io.dataWrite := 255.U
+        io.writeEnable := true.B
+        writeCell := writeCell + 1.U
+        when(writeCell === 75.U){
+          stateReg := loopx
+        }
       }
     }
     is(loopx) {
       io.writeEnable := false.B
 
-      when(y === 20.U) {
-        y := 0.U
+      when(y === 18.U) {
+        y := 1.U
       }
-      when(x === 20.U) {
+      when(x === 19.U) {
         stateReg := done
+<<<<<<< Updated upstream
       }.elsewhen(x === 0.U | y === 0.U | x === 19.U | y === 19.U) {
         stateReg := write
+=======
+>>>>>>> Stashed changes
       }.otherwise {
         stateReg := erode
       }
@@ -103,19 +131,25 @@ class Accelerator extends Module {
           io.dataWrite := color
           io.writeEnable := true.B
 
+<<<<<<< Updated upstream
 
           when(currCell === 0.U && y < 18.U ) {
+=======
+          currAddress := addressReg + 400.U
+          currColor := color
+          when(currCell === 0.U && y < 16.U) {
+>>>>>>> Stashed changes
             y := y + 2.U
             skip := 1.U
             stateReg := loopx
-            when(y === 19.U) {
+            when(y === 17.U) {
               x := x + 1.U
             }
           }.otherwise{
             y := y + 1.U
             skip := 0.U
             stateReg := loopx
-            when(y === 19.U) {
+            when(y === 17.U) {
               x := x + 1.U
             }
           }
