@@ -124,10 +124,15 @@ class Accelerator extends Module {
           currColor := color
           prevCell := 7.U
 
-          when(currCell === 0.U && y < 18.U) {
-            y := y + 2.U
-            skip := 1.U
-            stateReg := loopx
+          when(currCell === 0.U) {
+            when(y === 18.U){
+              y := y + 1.U
+              skip := 1.U
+            }.otherwise {
+              y := y + 2.U
+              skip := 1.U
+              stateReg := loopx
+            }
             when(y === 19.U) {
               x := x + 1.U
               y := 1.U
