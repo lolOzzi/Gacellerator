@@ -49,12 +49,18 @@ class SystemTopTester(dut: SystemTop) extends PeekPokeTester(dut) {
     cyclesCounter = cyclesCounter - 1
     running = peek(dut.io.done) == 0 && cyclesCounter > 0
     val vec = peek(dut.io.colsTester)
-    println("Column 1\tColumn 2")
-    for (i <- 0 until 40 / 2) {
-      val col1 = vec(i)
-      val col2 = vec(i + 40 / 2)
-      println(s"$col1\t\t$col2")
+    if (peek(dut.io.aboveBlackTester ) == 1)  {
+      println("miavkatten er tilbage")
     }
+    println("Column 1\tColumn 2")
+    for (i <- 0 until 20) {
+      val col1 = vec(i)
+      val col2 = vec(i + 20)
+      val col3 = vec(i + 40)
+      println(s"$col1\t\t$col2\t\t$col3")
+    }
+
+
 
   }
   poke(dut.io.start, 0)
