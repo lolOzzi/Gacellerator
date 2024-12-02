@@ -289,7 +289,8 @@ class Accelerator extends Module {
         addressReg := y*20.U + x
       }
       when (y === 0.U) {
-        stateReg := write
+        stateReg := getColor
+        y := 3.U
         color := 0.U
       }
       when(x === 20.U) {
