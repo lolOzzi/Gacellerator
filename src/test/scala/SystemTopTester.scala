@@ -13,7 +13,7 @@ class SystemTopTester(dut: SystemTop) extends PeekPokeTester(dut) {
   //Uncomment one of the following line depending on the image you want to load to the data memory
   //var image = Images.blackImageerodeDown
   //var image = Images.whiteImage
-  var image = Images.blackImage
+  var image = Images.cellsImage
   //var image = Images.borderCellsImage
   for( address <- 0 to image.length-1){
     poke(dut.io.testerDataMemEnable, 1)
@@ -48,9 +48,19 @@ class SystemTopTester(dut: SystemTop) extends PeekPokeTester(dut) {
     poke(dut.io.start, 0) //Start bit is 1 only for 1 cycle
     cyclesCounter = cyclesCounter - 1
     running = peek(dut.io.done) == 0 && cyclesCounter > 0
+    val vec = peek(dut.io.colsTester)
+    println("Column 1\tColumn 2")
+    for (i <- 0 until 40 / 2) {
+      val col1 = vec(i)
+      val col2 = vec(i + 40 / 2)
+      println(s"$col1\t\t$col2")
+    }
+
   }
   poke(dut.io.start, 0)
   System.out.println(" - Done!")
+
+
 
   //Dump the data memory content
   System.out.print("\nDump the data memory content... ")

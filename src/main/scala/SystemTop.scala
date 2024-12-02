@@ -12,6 +12,8 @@ class SystemTop extends Module {
     val testerDataMemWriteEnable = Input(Bool ())
     val testerDataMemDataWrite = Input(UInt (32.W))
 
+    val colsTester = Output(Vec(40, UInt(8.W)))
+
   })
 
   //Creating components
@@ -35,5 +37,7 @@ class SystemTop extends Module {
   dataMemory.io.testerDataWrite := io.testerDataMemDataWrite
   dataMemory.io.testerEnable := io.testerDataMemEnable
   dataMemory.io.testerWriteEnable := io.testerDataMemWriteEnable
+
+  io.colsTester := accelerator.io.colsTester
 
 }
