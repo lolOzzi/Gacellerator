@@ -76,7 +76,12 @@ class Accelerator extends Module {
         init := 1.U
       }
 
-      stateReg := getColor
+      when(x === 0.U || x === 19.U){
+        stateReg := borderWalls
+      }.otherwise{
+        stateReg := getColor
+      }
+
 
       when (x === 20.U) {
         stateReg := done
@@ -331,6 +336,23 @@ class Accelerator extends Module {
 
     }
     is(borderWalls) {
+      io.address := y*20.U + x + 400.U
+      io.writeEnable := true.B
+      io.dataWrite := 0.U
+      y := y + 1.U
+      when(y === 19.U){
+        when(x === 19.U){
+          x := 0.U
+          y := 19.U
+          stateReg := bottom
+        }.otherwise{
+          stateReg := getColor
+          y := 0.U
+          x := 1.U
+          io.writeEnable := false.B
+          addressReg := 20.U
+        }
+      }
 
     }
     is(bottom){
