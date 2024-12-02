@@ -26,19 +26,14 @@ class Accelerator extends Module {
   val addressReg = RegInit(0.U(16.W))
   val x = RegInit(0.U(8.W))
   val y = RegInit(0.U(8.W))
-  val lastWhite = RegInit(0.U(1.W))
   val color = RegInit(0.U(8.W))
-  val colorNext = RegInit(0.U(8.W))
   val cols = RegInit(VecInit(Seq.fill(40)(1.U(8.W))))
   val colRight = RegInit(VecInit(Seq.fill(20)(1.U(8.W))))
   val colsize = 20.U
   val init = RegInit(0.U(1.W))
   val addressRegNext = RegInit(0.U(16.W))
-  val addressCheck = RegInit(0.U(16.W))
-  val skipCount = RegInit(2.U(16.W))
   val mNum = RegInit(0.U(2.W))
-  val checkedColors = RegInit(VecInit(Seq.fill(4)(0.U(8.W))))
-  val colorsToCheck = RegInit(VecInit(Seq.fill(4)(0.S(6.W))))
+  val colorsToCheck = RegInit(VecInit(Seq.fill(5)(0.S(6.W))))
   val checkCount = RegInit(0.U(4.W))
   val backCount = RegInit(0.U(5.W))
   val colorsToWrite = RegInit(VecInit(Seq.fill(3)(0.U(8.W))))
@@ -82,7 +77,6 @@ class Accelerator extends Module {
       }
 
       stateReg := getColor
-      colorNext := 0.U
 
       when (x === 20.U) {
         stateReg := done
@@ -95,8 +89,6 @@ class Accelerator extends Module {
       io.dataWrite := 0.U
       io.writeEnable := true.B
       when (mNum === 0.U) {
-        io.address := addressReg + 400.U
-        io.dataWrite := 0.U
         mNum := 1.U
         cols(y-1.U) := cols(y-1.U + colsize)
         cols(y-2.U) := cols(y-2.U + colsize)
@@ -122,7 +114,6 @@ class Accelerator extends Module {
         stateReg := getColor
         addressReg := y*20.U + x
       }
-      io.dataWrite := 0.U
     }
     is(writeColors) {
       io.address := addressReg + 400.U  - (20.U*mNum)
@@ -163,8 +154,9 @@ class Accelerator extends Module {
 
       io.address := addressReg
       cols(y + colsize) := io.dataRead
-      when(io.dataRead === 255.U || cols(y - 3.U + colsize) === 255.U) {
-        colorNext := io.dataRead
+
+      when(io.dataRead === 255.U ) {
+
         color := 255.U
         backCount := 0.U
         stateReg := getPixel
@@ -193,6 +185,23 @@ class Accelerator extends Module {
           color := 0.U
         }
 
+      } .elsewhen(cols(y - 3.U + colsize) === 255.U) {
+
+        backCount := 0.U
+        stateReg := getPixel
+        colorsToCheck(0) := -20.S
+        colorsToCheck(1) := 20.S
+        colorsToCheck(2) := -1.S
+        colorsToCheck(3) := 1.S
+        colorsToCheck(4) := 0.S
+        colorsToWrite(0) := 0.U
+        stateReg := getPixel
+        color := 0.U
+
+        when(cols(colsize + y - 1.U) === 0.U) {
+          stateReg := writeMissedBlack
+          color := 0.U
+        }
 
       } .otherwise {
         stateReg := writeMissedBlack
@@ -230,14 +239,12 @@ class Accelerator extends Module {
         colRight(y - backCount) := io.dataRead
       }
       io.aboveBlackTester := aboveBlack
-
       color := color & io.dataRead
       colorsToCheck(checkCount) := 0.S
-      checkedColors(checkCount) := io.dataRead
       checkCount := checkCount + 1.U
       stateReg := getPixel
 
-      when (colorsToCheck(checkCount+1.U) === 0.S || endCheck || checkCount+1.U === 5.U) {
+      when (( colorsToCheck(checkCount+1.U) === 0.S || endCheck || checkCount+1.U === 4.U) ) {
         checkCount := 0.U
         colorsToWrite(backCount) := Mux(endCheck, 0.U, color & io.dataRead)
         color := 255.U
@@ -281,7 +288,6 @@ class Accelerator extends Module {
               needsCheckCountArr(1) := needsCheckCountArr(0) + 1.U
             }
             when(cols(y - 2.U) === 0.U || cols(y + colsize - 3.U) === 0.U) {
-              colorsToWrite(1) := 0.U
               colorsToWrite(2) := 0.U
               stateReg := writeColors
             }
@@ -289,18 +295,17 @@ class Accelerator extends Module {
             needsCheckCountArr(2) := needsCheckCountArr(1) + 1.U
             colorsToCheck(needsCheckCountArr(2)) := 0.S
           }
-          when((aboveBlack || cols(y -1.U + colsize) === 0.U) && backCount === 0.U) {
-            color := 0.U
-            stateReg := writeMissedBlack
-          }
-
-
 
         }.otherwise {
           backCount := 0.U
           stateReg := writeColors
+
         }
 
+      }
+      when((aboveBlack || cols(y -1.U + colsize) === 0.U) && backCount === 0.U) {
+        color := 0.U
+        stateReg := writeMissedBlack
       }
 
     }
