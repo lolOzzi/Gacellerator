@@ -22,7 +22,7 @@ class SystemTopTester(dut: SystemTop) extends PeekPokeTester(dut) {
     poke(dut.io.testerDataMemDataWrite, image(address))
     step(1)
   }
-  var image2 = Images.whiteImage
+  var image2 = Images.blackImage
   //var image = Images.borderCellsImage
   for( address <- 0 to image.length-1){
     poke(dut.io.testerDataMemEnable, 1)

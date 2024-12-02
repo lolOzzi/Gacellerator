@@ -73,26 +73,11 @@ class Accelerator extends Module {
 
     is(write) {
 
-      when (init === 1.U) {
-        io.address := addressReg + 400.U
-        io.dataWrite := color
-        io.writeEnable := true.B
+      io.address := 400.U
+      io.dataWrite := 0.U
+      io.writeEnable := true.B
 
-      }. otherwise {
-        init := 1.U
-      }
-
-      when(x === 0.U || x === 19.U){
-        stateReg := borderWalls
-      }
-        .otherwise{
-        y := y + 3.U
-        stateReg := getColor
-      }
-
-      when (x === 20.U) {
-        stateReg := done
-      }
+      stateReg := borderWalls
     }
     is(writeMissedBlack) {
       io.address := addressReg + 400.U  - (20.U*mNum)
@@ -334,8 +319,6 @@ class Accelerator extends Module {
         color := color & io.dataRead
       }
 
-
-
       io.aboveBlackTester := aboveBlack
       colorsToCheck(checkCount) := 0.S
       checkCount := checkCount + 1.U
@@ -420,7 +403,6 @@ class Accelerator extends Module {
         }.otherwise {
           backCount := 0.U
           stateReg := writeColors
-
         }
 
       }
@@ -428,10 +410,17 @@ class Accelerator extends Module {
 
     }
     is(borderWalls) {
-      io.address := y*20.U + x + 400.U
+      when(y === 0.U && x === 0.U){
+        io.address := 20.U + x + 400.U
+        y := 2.U
+      }.otherwise{
+        y := y + 1.U
+        io.address := y*20.U + x + 400.U
+      }
+
       io.writeEnable := true.B
       io.dataWrite := 0.U
-      y := y + 1.U
+
       when(y === 19.U){
         when(x === 19.U){
           x := 0.U
