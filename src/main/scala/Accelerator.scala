@@ -19,7 +19,7 @@ class Accelerator extends Module {
 
 
   //State enum and register
-  val idle :: write :: getColor :: writeColors :: getPixel :: writeMissedBlack :: finish :: bottom :: done :: Nil = Enum (9)
+  val idle :: borderWalls :: write :: getColor :: writeColors :: getPixel :: writeMissedBlack :: finish :: bottom :: done :: Nil = Enum (10)
   val stateReg = RegInit(idle)
 
   //Support registers
@@ -194,6 +194,7 @@ class Accelerator extends Module {
         colorsToCheck(2) := -1.S
         colorsToCheck(3) := 1.S
         colorsToCheck(4) := 0.S
+        colorsToWrite(1) := 0.U
         colorsToWrite(0) := 0.U
         stateReg := getPixel
         color := 0.U
@@ -276,6 +277,26 @@ class Accelerator extends Module {
             colorsToWrite(0) := 0.U
           }
 
+          when(cols(y + colsize ) === 0.U && backCount === 0.U ) {
+            colorsToWrite(1.U) := 0.U
+            needsCheckCountArr := VecInit(Seq.fill(5)(0.U))
+            needsCheckCountArr(1) := needsCheckCountArr(0)
+            when(cols(y + colsize - 1.U) === 1.U) {
+              colorsToCheck(needsCheckCountArr(0)) := -20.S
+              needsCheckCountArr(1) := needsCheckCountArr(0) + 1.U
+            }
+            needsCheckCountArr(2) := needsCheckCountArr(1)
+            when(cols(y - 2.U) === 1.U) {
+              colorsToCheck(needsCheckCountArr(1)) := -1.S
+              needsCheckCountArr(2) := needsCheckCountArr(1) + 1.U
+            }
+            colorsToCheck(needsCheckCountArr(2)) := 1.S
+            needsCheckCountArr(3) := needsCheckCountArr(2) + 1.U
+            colorsToCheck(needsCheckCountArr(3)) := 0.S
+            backCount := 2.U
+
+          }
+
           when ((cols(y - 2.U) === 0.U || cols(y + colsize - 3.U) === 0.U) && backCount === 1.U) {
             colorsToWrite(2) := 0.U
             stateReg := writeColors
@@ -309,8 +330,9 @@ class Accelerator extends Module {
       }
 
     }
+    is(borderWalls) {
 
-
+    }
     is(bottom){
       x := x + 1.U
       io.address := y*20.U + x + 400.U
