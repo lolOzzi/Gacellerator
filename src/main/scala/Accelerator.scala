@@ -40,6 +40,7 @@ class Accelerator extends Module {
   val endCheck = Wire(Bool())
   val needsCheckCountArr = Wire(Vec(5, UInt(8.W)))
   val aboveBlack = Wire(Bool())
+  val checkCol = Wire(Bool())
   val nextWhite = RegInit(false.B)
   //val needsCheckCount = Wire(UInt(4.W))
   endCheck := false.B
@@ -52,6 +53,7 @@ class Accelerator extends Module {
 
   aboveBlack := false.B
   nextWhite := false.B
+  checkCol := false.B
 
   //Default values
   io.writeEnable := false.B
@@ -121,8 +123,11 @@ class Accelerator extends Module {
         }
       }.otherwise {
         mNum := 0.U
-        stateReg := getColor
+        when(cols(colsize + y) === 255.U) {
+          nextWhite := true.B
+        }
         addressReg := y*20.U + x
+        stateReg := getColor
       }
     }
     is(writeColors) {
@@ -159,7 +164,6 @@ class Accelerator extends Module {
         }
         addressReg := y*20.U + x
         stateReg := getColor
-
       }
     }
 
@@ -217,7 +221,6 @@ class Accelerator extends Module {
           needsCheckCountArr(3) := needsCheckCountArr(2) + 1.U
           colorsToCheck(needsCheckCountArr(3)) := 0.S
           backCount := 1.U
-
         }
 
 
@@ -297,13 +300,36 @@ class Accelerator extends Module {
       } .elsewhen(colorsToCheck(checkCount) === 1.S) {
         colRight(y - backCount) := io.dataRead
       }
+      when(backCount === 0.U){
+        when(cols(colsize + y) === 0.U){
+          checkCol := true.B
+        }.elsewhen(cols(y) === 0.U){
+          checkCol := true.B
+        }.elsewhen(colRight(y) === 0.U){
+          checkCol := true.B
+        }
+        when(checkCol === true.B){
+          color := 0.U
+          endCheck := true.B
+        }.otherwise {
+          color := color & io.dataRead
+        }
+      }.otherwise {
+        color := color & io.dataRead
+      }
+
+
+
       io.aboveBlackTester := aboveBlack
-      color := color & io.dataRead
       colorsToCheck(checkCount) := 0.S
       checkCount := checkCount + 1.U
       stateReg := getPixel
-
-      when (( colorsToCheck(checkCount+1.U) === 0.S || endCheck || checkCount+1.U === 4.U) ) {
+      when((aboveBlack || cols(y -1.U + colsize) === 0.U) && backCount === 0.U) {
+        color := 0.U
+        checkCount := 0.U
+        stateReg := writeMissedBlack
+      }
+      .elsewhen (colorsToCheck(checkCount+1.U) === 0.S || endCheck || checkCount+1.U === 4.U) {
         checkCount := 0.U
         colorsToWrite(backCount) := Mux(endCheck, 0.U, color & io.dataRead)
         color := 255.U
@@ -382,11 +408,7 @@ class Accelerator extends Module {
         }
 
       }
-      when((aboveBlack || cols(y -1.U + colsize) === 0.U) && backCount === 0.U) {
-        color := 0.U
-        checkCount := 0.U
-        stateReg := writeMissedBlack
-      }
+
 
     }
     is(borderWalls) {
