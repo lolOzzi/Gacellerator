@@ -117,17 +117,26 @@ class Accelerator extends Module {
         mNum := 2.U
         stateReg := writeMissedBlack
         y := y + 3.U
-        when(y >= 18.U) {
+        when(y === 18.U) {
+
+          cols(y) := cols(y + colsize)
+          cols(y + 1.U) := cols(y + colsize + 1.U)
+          cols(y + colsize) := colRight(y)
+          cols(y + 1.U + colsize) := colRight(y + 1.U)
+          colRight(y) := 1.U
+          colRight(y+1.U) := 1.U
           x := x + 1.U
           y := 0.U
         }
       }.otherwise {
         mNum := 0.U
+        stateReg := getColor
         when(cols(colsize + y) === 255.U) {
           nextWhite := true.B
+        } .elsewhen (cols(colsize + y) === 0.U) {
+          stateReg := writeMissedBlack
         }
         addressReg := y*20.U + x
-        stateReg := getColor
       }
     }
     is(writeColors) {
@@ -153,17 +162,27 @@ class Accelerator extends Module {
         mNum := 2.U
         stateReg := writeColors
         y := y + 3.U
-        when(y >= 18.U) {
+        when(y === 18.U) {
+
+          cols(y) := cols(y + colsize)
+          cols(y + 1.U) := cols(y + colsize + 1.U)
+          cols(y + colsize) := colRight(y)
+          cols(y + 1.U + colsize) := colRight(y + 1.U)
+          colRight(y) := 1.U
+          colRight(y+1.U) := 1.U
           x := x + 1.U
           y := 0.U
         }
       }.otherwise {
         mNum := 0.U
+        stateReg := getColor
         when(cols(colsize + y) === 255.U) {
           nextWhite := true.B
+        } .elsewhen (cols(colsize + y) === 0.U) {
+          stateReg := writeMissedBlack
         }
         addressReg := y*20.U + x
-        stateReg := getColor
+
       }
     }
 
@@ -175,7 +194,7 @@ class Accelerator extends Module {
         cols(y + colsize) := io.dataRead
         io.address := addressReg
       }
-      when(io.dataRead === 255.U || nextWhite) {
+      when((io.dataRead === 255.U && !nextWhite) || nextWhite) {
 
         color := 255.U
         backCount := 0.U
