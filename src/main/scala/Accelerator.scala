@@ -19,7 +19,7 @@ class Accelerator extends Module {
 
 
   //State enum and register
-  val idle :: borderWalls :: write :: getColor :: writeColors :: getPixel :: writeMissedBlack :: finish :: bottom :: done :: Nil = Enum (10)
+  val idle :: borderWalls :: write :: getColor :: top :: writeColors :: getPixel :: writeMissedBlack :: finish :: bottom :: done :: Nil = Enum (11)
   val stateReg = RegInit(idle)
 
   //Support registers
@@ -84,17 +84,15 @@ class Accelerator extends Module {
 
       when(x === 0.U || x === 19.U){
         stateReg := borderWalls
-      }.otherwise{
+      }
+        .otherwise{
         y := y + 3.U
         stateReg := getColor
       }
 
-
       when (x === 20.U) {
         stateReg := done
       }
-
-
     }
     is(writeMissedBlack) {
       io.address := addressReg + 400.U  - (20.U*mNum)
@@ -111,14 +109,12 @@ class Accelerator extends Module {
         colRight(y-1.U) := 1.U
         colRight(y-2.U) := 1.U
         colRight(y-3.U) := 1.U
-
         stateReg := writeMissedBlack
       } .elsewhen(mNum === 1.U) {
         mNum := 2.U
         stateReg := writeMissedBlack
         y := y + 3.U
         when(y === 18.U) {
-
           cols(y) := cols(y + colsize)
           cols(y + 1.U) := cols(y + colsize + 1.U)
           cols(y + colsize) := colRight(y)
@@ -126,7 +122,7 @@ class Accelerator extends Module {
           colRight(y) := 1.U
           colRight(y+1.U) := 1.U
           x := x + 1.U
-          y := 0.U
+          y := 3.U
         }
       }.otherwise {
         mNum := 0.U
@@ -171,7 +167,7 @@ class Accelerator extends Module {
           colRight(y) := 1.U
           colRight(y+1.U) := 1.U
           x := x + 1.U
-          y := 0.U
+          y := 3.U
         }
       }.otherwise {
         mNum := 0.U
@@ -451,6 +447,7 @@ class Accelerator extends Module {
 
     }
     is(bottom){
+
       x := x + 1.U
       io.address := y*20.U + x + 400.U
       io.writeEnable := true.B
@@ -458,6 +455,18 @@ class Accelerator extends Module {
       stateReg := bottom
       when (x === 20.U) {
         io.address := 401.U
+        x := 0.U
+        y := 0.U
+        stateReg := top
+      }
+    }
+    is(top){
+      x := x + 1.U
+      io.address := y*20.U + x + 400.U
+      io.writeEnable := true.B
+      io.dataWrite := 0.U
+      stateReg := top
+      when (x === 20.U) {
         stateReg := done
       }
     }
