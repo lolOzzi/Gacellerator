@@ -1,1 +1,1 @@
-586 clock cycles
+575 clock cycles

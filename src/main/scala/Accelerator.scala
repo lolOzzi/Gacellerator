@@ -1,6 +1,6 @@
 import chisel3._
 import chisel3.util._
-import org.scalacheck.Prop.False
+import org.scalacheck.Prop.{False, all}
 
 class Accelerator extends Module {
   val io = IO(new Bundle {
@@ -19,7 +19,7 @@ class Accelerator extends Module {
 
 
   //State enum and register
-  val idle :: borderWalls :: write :: getColor :: top :: writeColors :: getPixel :: writeMissedBlack :: finish :: bottom :: done :: Nil = Enum (11)
+  val idle :: borderWalls :: write :: getColor :: top :: writeColors :: getPixel :: finish :: bottom :: done :: Nil = Enum (10)
   val stateReg = RegInit(idle)
 
   //Support registers
@@ -42,18 +42,18 @@ class Accelerator extends Module {
   val aboveBlack = Wire(Bool())
   val checkCol = Wire(Bool())
   val nextWhite = RegInit(false.B)
-  //val needsCheckCount = Wire(UInt(4.W))
+  val allBlack = RegInit(false.B)
+  val shouldEnd = RegInit(false.B)
   endCheck := false.B
   needsCheckCountArr := VecInit(Seq.fill(5)(0.U))
-  //needsCheckCount := 0.U
   io.colsTester := cols ++ colRight
   io.aboveBlackTester := false.B
-
-
 
   aboveBlack := false.B
   nextWhite := false.B
   checkCol := false.B
+  allBlack := false.B
+  shouldEnd := false.B
 
   //Default values
   io.writeEnable := false.B
@@ -72,63 +72,28 @@ class Accelerator extends Module {
     }
 
     is(write) {
-
       io.address := 400.U
       io.dataWrite := 0.U
       io.writeEnable := true.B
+      y := 1.U
+      x := 0.U
 
       stateReg := borderWalls
     }
-    is(writeMissedBlack) {
-      io.address := addressReg + 400.U  - (20.U*mNum)
-      io.dataWrite := 0.U
-      io.writeEnable := true.B
-      when (mNum === 0.U) {
-        mNum := 1.U
-        cols(y-1.U) := cols(y-1.U + colsize)
-        cols(y-2.U) := cols(y-2.U + colsize)
-        cols(y-3.U) := cols(y-3.U + colsize)
-        cols(y-1.U + colsize) := colRight(y-1.U)
-        cols(y-2.U + colsize) := colRight(y-2.U)
-        cols(y-3.U + colsize) := colRight(y-3.U)
-        colRight(y-1.U) := 1.U
-        colRight(y-2.U) := 1.U
-        colRight(y-3.U) := 1.U
-        stateReg := writeMissedBlack
-      } .elsewhen(mNum === 1.U) {
-        mNum := 2.U
-        stateReg := writeMissedBlack
-        y := y + 3.U
-        when(y === 18.U) {
-          cols(y) := cols(y + colsize)
-          cols(y + 1.U) := cols(y + colsize + 1.U)
-          cols(y + colsize) := colRight(y)
-          cols(y + 1.U + colsize) := colRight(y + 1.U)
-          colRight(y) := 1.U
-          colRight(y+1.U) := 1.U
-          x := x + 1.U
-          y := 3.U
-        }
-      }.otherwise {
-        mNum := 0.U
-        stateReg := getColor
-        when(cols(colsize + y) === 255.U) {
-          nextWhite := true.B
-        } .elsewhen (cols(colsize + y) === 0.U) {
-          stateReg := writeMissedBlack
-        }
-        addressReg := y*20.U + x
-      }
-    }
+
     is(writeColors) {
       io.address := addressReg + 400.U  - (20.U*mNum)
-      io.dataWrite := colorsToWrite(mNum)
+      when(allBlack){
+        io.dataWrite := 0.U
+        allBlack := true.B
+      }.otherwise{
+        io.dataWrite := colorsToWrite(mNum)
+      }
+
       io.writeEnable := true.B
       when (mNum === 0.U) {
-        io.address := addressReg + 400.U
-        io.dataWrite := colorsToWrite(mNum)
-        mNum := 1.U
 
+        mNum := 1.U
         cols(y-1.U) := cols(y-1.U + colsize)
         cols(y-2.U) := cols(y-2.U + colsize)
         cols(y-3.U) := cols(y-3.U + colsize)
@@ -144,7 +109,6 @@ class Accelerator extends Module {
         stateReg := writeColors
         y := y + 3.U
         when(y === 18.U) {
-
           cols(y) := cols(y + colsize)
           cols(y + 1.U) := cols(y + colsize + 1.U)
           cols(y + colsize) := colRight(y)
@@ -153,6 +117,9 @@ class Accelerator extends Module {
           colRight(y+1.U) := 1.U
           x := x + 1.U
           y := 3.U
+          when(x === 18.U){
+            shouldEnd := true.B
+          }
         }
       }.otherwise {
         mNum := 0.U
@@ -160,10 +127,15 @@ class Accelerator extends Module {
         when(cols(colsize + y) === 255.U) {
           nextWhite := true.B
         } .elsewhen (cols(colsize + y) === 0.U) {
-          stateReg := writeMissedBlack
+          allBlack := true.B
+          stateReg := writeColors
         }
         addressReg := y*20.U + x
-
+        when(shouldEnd) {
+          x := 19.U
+          y := 0.U
+          stateReg := borderWalls
+        }
       }
     }
 
@@ -223,9 +195,9 @@ class Accelerator extends Module {
           backCount := 1.U
         }
 
-
         when(cols(colsize + y - 1.U) === 0.U) {
-          stateReg := writeMissedBlack
+          allBlack := true.B
+          stateReg := writeColors
           color := 0.U
         }
 
@@ -261,31 +233,24 @@ class Accelerator extends Module {
         color := 0.U
 
         when(cols(colsize + y - 1.U) === 0.U) {
-          stateReg := writeMissedBlack
+          allBlack := true.B
+          stateReg := writeColors
           color := 0.U
         }
 
       } .otherwise {
-        stateReg := writeMissedBlack
+        allBlack := true.B
+        stateReg := writeColors
         color := 0.U
-      }
-
-      when (y === 3.U) {
-        addressReg := y*20.U + x
-      }
-      when (y === 0.U) {
-        stateReg := getColor
-        y := 3.U
-        color := 0.U
-      }
-      when(x === 20.U) {
-        x := 0.U
-        y := 19.U
-        stateReg := bottom
-      }
+      }/*
+      when(x === 19.U) {
+        x := 19.U
+        y := 0.U
+        stateReg := borderWalls
+      }*/
     }
-    is(getPixel) {
 
+    is(getPixel) {
       io.address := (addressReg.zext() + (colorsToCheck(checkCount) - 20.S*backCount.zext())).asUInt()
       endCheck := false.B
 
@@ -326,7 +291,8 @@ class Accelerator extends Module {
       when((aboveBlack || cols(y -1.U + colsize) === 0.U) && backCount === 0.U) {
         color := 0.U
         checkCount := 0.U
-        stateReg := writeMissedBlack
+        allBlack := true.B
+        stateReg := writeColors
       }
       .elsewhen (colorsToCheck(checkCount+1.U) === 0.S || endCheck || checkCount+1.U === 4.U) {
         checkCount := 0.U
@@ -404,23 +370,14 @@ class Accelerator extends Module {
           backCount := 0.U
           stateReg := writeColors
         }
-
       }
-
-
     }
-    is(borderWalls) {
-      when(y === 0.U && x === 0.U){
-        io.address := 20.U + x + 400.U
-        y := 2.U
-      }.otherwise{
-        y := y + 1.U
-        io.address := y*20.U + x + 400.U
-      }
 
+    is(borderWalls) {
+      y := y + 1.U
+      io.address := y*20.U + x + 400.U
       io.writeEnable := true.B
       io.dataWrite := 0.U
-
       when(y === 19.U){
         when(x === 19.U){
           x := 0.U
@@ -428,35 +385,35 @@ class Accelerator extends Module {
           stateReg := bottom
         }.otherwise{
           stateReg := getColor
-          y := 0.U
+          y := 3.U
           x := 1.U
           io.writeEnable := false.B
-          addressReg := 20.U
+          addressReg := 3.U * 20.U + 1.U
         }
       }
-
     }
-    is(bottom){
 
+    is(bottom){
       x := x + 1.U
       io.address := y*20.U + x + 400.U
       io.writeEnable := true.B
       io.dataWrite := 0.U
       stateReg := bottom
-      when (x === 20.U) {
+      when (x === 19.U) {
         io.address := 401.U
-        x := 0.U
+        x := 1.U
         y := 0.U
         stateReg := top
       }
     }
+
     is(top){
       x := x + 1.U
       io.address := y*20.U + x + 400.U
       io.writeEnable := true.B
       io.dataWrite := 0.U
       stateReg := top
-      when (x === 20.U) {
+      when (x === 18.U) {
         stateReg := done
       }
     }
@@ -466,6 +423,4 @@ class Accelerator extends Module {
       stateReg := done
     }
   }
-
-
 }

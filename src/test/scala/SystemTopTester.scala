@@ -22,8 +22,7 @@ class SystemTopTester(dut: SystemTop) extends PeekPokeTester(dut) {
     poke(dut.io.testerDataMemDataWrite, image(address))
     step(1)
   }
-  var image2 = Images.blackImage
-  //var image = Images.borderCellsImage
+  var image2 = Images.whiteImage
   for( address <- 0 to image.length-1){
     poke(dut.io.testerDataMemEnable, 1)
     poke(dut.io.testerDataMemWriteEnable, 1)
@@ -48,20 +47,6 @@ class SystemTopTester(dut: SystemTop) extends PeekPokeTester(dut) {
     poke(dut.io.start, 0) //Start bit is 1 only for 1 cycle
     cyclesCounter = cyclesCounter - 1
     running = peek(dut.io.done) == 0 && cyclesCounter > 0
-    val vec = peek(dut.io.colsTester)
-    if (peek(dut.io.aboveBlackTester ) == 1)  {
-      println("miavkatten er tilbage")
-    }
-    println("Column 1\tColumn 2")
-    for (i <- 0 until 20) {
-      val col1 = vec(i)
-      val col2 = vec(i + 20)
-      val col3 = vec(i + 40)
-      println(s"$col1\t\t$col2\t\t$col3")
-    }
-
-
-
   }
   poke(dut.io.start, 0)
   System.out.println(" - Done!")
