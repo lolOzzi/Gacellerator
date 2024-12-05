@@ -19,7 +19,7 @@ class Accelerator extends Module {
 
 
   //State enum and register
-  val idle :: borderWalls :: write :: getColor :: top :: writeColors :: getPixel :: finish :: bottom :: done :: Nil = Enum (10)
+  val idle :: borderWalls :: init :: getPixels :: top :: writeColors :: getColors :: finish :: bottom :: done :: Nil = Enum (10)
   val stateReg = RegInit(idle)
 
   //Support registers
@@ -30,13 +30,11 @@ class Accelerator extends Module {
   val cols = RegInit(VecInit(Seq.fill(40)(1.U(8.W))))
   val colRight = RegInit(VecInit(Seq.fill(20)(1.U(8.W))))
   val colsize = 20.U
-  val init = RegInit(0.U(1.W))
-  val addressRegNext = RegInit(0.U(16.W))
   val mNum = RegInit(0.U(2.W))
   val colorsToCheck = RegInit(VecInit(Seq.fill(5)(0.S(6.W))))
   val checkCount = RegInit(0.U(4.W))
   val backCount = RegInit(0.U(5.W))
-  val colorsToWrite = RegInit(VecInit(Seq.fill(3)(0.U(8.W))))
+  val colorsToWrite = RegInit(VecInit(Seq.fill(3)(0.U(8.W)))
   val endCheck = Wire(Bool())
   val needsCheckCountArr = Wire(Vec(5, UInt(8.W)))
   val aboveBlack = Wire(Bool())
@@ -66,18 +64,17 @@ class Accelerator extends Module {
   switch(stateReg) {
     is(idle) {
       when(io.start) {
-        stateReg := write
+        stateReg := init
         addressReg := 0.U(16.W)
       }
     }
 
-    is(write) {
+    is(init) {
       io.address := 400.U
       io.dataWrite := 0.U
       io.writeEnable := true.B
       y := 1.U
       x := 0.U
-
       stateReg := borderWalls
     }
 
@@ -124,7 +121,7 @@ class Accelerator extends Module {
         }
       }.otherwise {
         mNum := 0.U
-        stateReg := getColor
+        stateReg := getPixels
         backCount := 0.U
         when(cols(colsize + y) === 255.U) {
           nextWhite := true.B
@@ -141,7 +138,7 @@ class Accelerator extends Module {
       }
     }
 
-    is(getColor) {
+    is(getPixels) {
       when(nextWhite) {
         colRight(y) := io.dataRead
         io.address := addressReg + 1.U
@@ -170,7 +167,7 @@ class Accelerator extends Module {
         }.elsewhen(cols(y - 1.U) === 0.U){
           colorsToWrite(1) := 0.U
           backCount := 2.U
-          stateReg := getPixel
+          stateReg := getColors
         }.otherwise {
           needsCheckCountArr := VecInit(Seq.fill(5)(0.U))
           when(cols(colsize + y - 2.U) === 1.U) {
@@ -186,13 +183,13 @@ class Accelerator extends Module {
           colorsToCheck(needsCheckCountArr(3)) := 1.S
           needsCheckCountArr(4) := needsCheckCountArr(3) + 1.U
           colorsToCheck(needsCheckCountArr(4)) := 0.S
-          stateReg := getPixel
+          stateReg := getColors
         }
       }
       .elsewhen((io.dataRead === 255.U && !nextWhite) || nextWhite) {
         color := 255.U
         backCount := 0.U
-        stateReg := getPixel
+        stateReg := getColors
         needsCheckCountArr := VecInit(Seq.fill(5)(0.U))
         when(cols(colsize + y - 1.U) === 1.U) {
           colorsToCheck(needsCheckCountArr(0)) := -20.S
@@ -238,7 +235,7 @@ class Accelerator extends Module {
       } .elsewhen(cols(y - 3.U + colsize) === 255.U) {
 
         backCount := 0.U
-        stateReg := getPixel
+        stateReg := getColors
         needsCheckCountArr := VecInit(Seq.fill(5)(0.U))
         when(cols(colsize + y - 1.U) === 1.U) {
           colorsToCheck(needsCheckCountArr(0)) := -20.S
@@ -263,7 +260,7 @@ class Accelerator extends Module {
         colorsToCheck(needsCheckCountArr(4)) := 0.S
         colorsToWrite(1) := 0.U
         colorsToWrite(0) := 0.U
-        stateReg := getPixel
+        stateReg := getColors
         color := 0.U
 
         when(cols(colsize + y - 1.U) === 0.U) {
@@ -279,7 +276,7 @@ class Accelerator extends Module {
       }
     }
 
-    is(getPixel) {
+    is(getColors) {
       io.address := (addressReg.zext() + (colorsToCheck(checkCount) - 20.S*backCount.zext())).asUInt()
       endCheck := false.B
 
@@ -316,7 +313,7 @@ class Accelerator extends Module {
       io.aboveBlackTester := aboveBlack
       colorsToCheck(checkCount) := 0.S
       checkCount := checkCount + 1.U
-      stateReg := getPixel
+      stateReg := getColors
       when((aboveBlack || cols(y -1.U + colsize) === 0.U) && backCount === 0.U) {
         checkCount := 0.U
         allBlack := true.B
@@ -347,7 +344,7 @@ class Accelerator extends Module {
         colorsToCheck(needsCheckCountArr(2)) := 1.S
         needsCheckCountArr(3) := needsCheckCountArr(2) + 1.U
         colorsToCheck(needsCheckCountArr(3)) := 0.S
-        stateReg := getPixel
+        stateReg := getColors
 
         when(backCount === 0.U){
           when(cols(y) === 0.U || colRight(y) === 0.U) {
@@ -416,7 +413,7 @@ class Accelerator extends Module {
           y := 19.U
           stateReg := bottom
         }.otherwise{
-          stateReg := getColor
+          stateReg := getPixels
           y := 3.U
           x := 1.U
           io.writeEnable := false.B
